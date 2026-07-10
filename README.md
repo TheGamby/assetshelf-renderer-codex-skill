@@ -17,6 +17,17 @@ additional texture or material directories.
 The renderer is distributed separately from this repository as a signed and
 notarized installer package.
 
+## Renderer CLI and Download
+
+The skill and the AssetShelf Renderer CLI are maintained as one public toolset.
+The product page always provides the current signed and notarized macOS
+installer, feature overview, and rendered examples:
+
+- [AssetShelf Renderer CLI product page](https://thegamby.de/assetshelf-renderer/)
+- [Download the current macOS installer](https://thegamby.de/assetshelf-renderer/downloads/AssetShelf3DRenderCLI-1.1-6.pkg)
+
+Current renderer release: **1.1 (Build 6)**.
+
 SceneKit rendering cannot run in a restricted sandbox without GPU access. Run
 actual render commands outside the sandbox from the first attempt. In Codex,
 request `sandbox_permissions: require_escalated` for the render command. This

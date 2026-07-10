@@ -2,6 +2,10 @@
 
 `assetshelf-render` is installed at `/usr/local/bin/assetshelf-render`.
 
+Actual rendering requires host Metal/GPU access and cannot run in a restricted sandbox. Run render commands outside the sandbox from the first attempt; in Codex shell tools, request `sandbox_permissions: require_escalated`. This is not administrator access and does not require `sudo`. Inspection commands such as `assetshelf-render --help` may run inside the sandbox.
+
+If rendering reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, repeat the exact command once outside the sandbox. Do not change model, camera, material, texture, or render options for this error. If it remains with host GPU access, report a local Metal/SceneKit availability failure.
+
 Usage:
 
 ```sh

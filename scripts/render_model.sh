@@ -47,7 +47,29 @@ case "${output_png##*.}" in
     ;;
 esac
 
-"$renderer" "$input_model" --output "$output_png" "$@"
+renderer_stderr="$(mktemp "${TMPDIR:-/tmp}/assetshelf-render-stderr.XXXXXX")"
+cleanup() {
+  rm -f "$renderer_stderr"
+}
+trap cleanup EXIT
+
+set +e
+"$renderer" "$input_model" --output "$output_png" "$@" 2>"$renderer_stderr"
+renderer_status=$?
+set -e
+
+cat "$renderer_stderr" >&2
+
+if [[ $renderer_status -ne 0 ]]; then
+  if grep -Eq 'Metal device unavailable|SceneKit offscreen rendering requires GPU access' "$renderer_stderr"; then
+    cat >&2 <<'METAL_GUIDANCE'
+assetshelf-render wrapper: rendering requires host Metal/GPU access and cannot run in the current sandbox.
+Retry this exact command once outside the sandbox with GPU access. For Codex shell tools, request sandbox_permissions: require_escalated.
+Do not use sudo; this is a sandbox permission issue, not a model, camera, material, or texture error.
+METAL_GUIDANCE
+  fi
+  exit "$renderer_status"
+fi
 
 if [[ ! -s "$output_png" ]]; then
   echo "Render output is missing or empty: $output_png" >&2

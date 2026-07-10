@@ -9,6 +9,12 @@ description: Render 3D model files to PNG images with the local AssetShelf 3D co
 
 Use the installed `/usr/local/bin/assetshelf-render` CLI to render supported 3D model files to PNG outputs, including single-view renders and contact sheets with multiple model views in one image. FBX PBR images may be external or packed inside the FBX. glTF and GLB use GLTFKit2 for core PBR materials and external or embedded resources. Prefer the bundled wrapper script for repeatable calls because it validates the CLI, input, output extension, and PNG signature.
 
+## Execution Requirements
+
+Actual rendering uses SceneKit and Metal and cannot run in a restricted sandbox without host GPU access. Run render commands outside the sandbox from the first attempt. When using Codex shell tools, request `sandbox_permissions: require_escalated` with a concise Metal/GPU justification. This permission is not administrator access: do not use `sudo`.
+
+Commands that only inspect the CLI, such as `assetshelf-render --help`, may run inside the sandbox. If a render reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, retry the exact command once outside the sandbox. Do not change the model, textures, camera, or render options in response to this error. If the same error remains with host GPU access, report it as a local Metal/SceneKit availability failure.
+
 ## Quick Workflow
 
 1. Confirm the CLI exists:
@@ -24,7 +30,9 @@ assetshelf-render --help
 find /Users/jurgenreichardt-kron/Downloads /Users/jurgenreichardt-kron/Documents -type f \( -iname '*.fbx' -o -iname '*.obj' -o -iname '*.gltf' -o -iname '*.glb' -o -iname '*.usdz' -o -iname '*.usd' -o -iname '*.stl' -o -iname '*.ply' \) -print
 ```
 
-3. Render via the wrapper:
+3. Request execution outside the sandbox with host Metal/GPU access. Do not use `sudo`.
+
+4. Render via the wrapper:
 
 ```sh
 ~/.codex/skills/assetshelf-render/scripts/render_model.sh \
@@ -36,7 +44,7 @@ find /Users/jurgenreichardt-kron/Downloads /Users/jurgenreichardt-kron/Documents
   --background transparent
 ```
 
-4. Report the output path and any validation result. If the user asked to inspect the image, use `view_image` on the PNG.
+5. Report the output path and any validation result. If the user asked to inspect the image, use `view_image` on the PNG.
 
 ## CLI Contract
 
@@ -141,7 +149,8 @@ done
 - Required Draco or KTX2/BasisU glTF content fails clearly because those codecs are not bundled in 1.1.
 - USD, USDA, and USDC imports preserve relative layers, payloads, references, materials, and textures. Symlinks are skipped and reported.
 - Recoverable loader notices are written as `assetshelf-render: warning [CODE]: ...` on standard error while the render exits `0`.
-- If rendering fails with Metal/GPU errors, note that SceneKit offscreen rendering needs local macOS GPU access.
+- If rendering reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, retry the exact command once outside the sandbox with host GPU access. For Codex shell tools, request `sandbox_permissions: require_escalated`.
+- Do not use `sudo` for Metal access and do not diagnose this sandbox error as a broken model, camera, material, or texture. If the same error remains outside the sandbox, report a local Metal/SceneKit availability failure.
 - If contact-sheet views are needed, use `--layout contact-4` for front/back/left/right or `--layout contact-6` to add top/bottom.
 - If the user asks for details, read `references/user-guide-summary.md`.
 

@@ -13,13 +13,13 @@ assetshelf-render <model> --output <render.png> [options]
 assetshelf-render --version
 ```
 
-Release 1.1 (Build 7) reports `assetshelf-render 1.1 (7)` for `--version`.
+Release 1.1 (Build 8) reports `assetshelf-render 1.1 (8)` for `--version`.
 
 Supported formats: `FBX, OBJ, DAE, SCN, USD, USDA, USDC, USDZ, glTF, GLB, STL, PLY`.
 
 Output must be PNG. The renderer creates missing output directories automatically.
 
-FBX BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular textures can be loaded from external files or packed image data. Packed textures do not require a neighboring `.fbm` directory. The fallback also preserves vertex colors, tangents, multiple UV sets, texture UV selection, wrap modes, and UV transforms.
+FBX BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular textures can be loaded from external files or packed image data. Packed textures do not require a neighboring `.fbm` directory. If the optional `<model>.fbm` directory does not exist, the renderer remains completely silent; only genuine problems with referenced resources are diagnosed. The fallback also preserves vertex colors, tangents, multiple UV sets, texture UV selection, wrap modes, and UV transforms.
 
 glTF and GLB use GLTFKit2 0.5.15 for core PBR materials, embedded data, external buffers/images, sparse accessors, samplers, alpha modes, double-sided materials, and multiple UV channels. Required Draco and KTX2/BasisU resources are rejected clearly in 1.1.
 
@@ -48,10 +48,10 @@ Contact sheets are supported with:
 
 Contact-sheet output is limited to 16,777,216 pixels total and 8192 pixels per dimension. Invalid, non-finite, overflowing, or out-of-range numeric values fail before rendering.
 
-Release package for AssetShelf Renderer CLI 1.1 (Build 7):
+Release package for AssetShelf Renderer CLI 1.1 (Build 8):
 
 ```text
-AssetShelf3DRenderCLI-1.1-7.pkg
+AssetShelf3DRenderCLI-1.1-8.pkg
 ```
 
 Download the current signed and notarized installer from `https://thegamby.de/assetshelf-renderer/`.

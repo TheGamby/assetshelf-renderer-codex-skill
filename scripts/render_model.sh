@@ -13,8 +13,9 @@ All assetshelf-render options are passed through, including:
   --contact-arrangement grid|strip
   --asset-dir PATH (repeatable)
 
-Packed FBX and GLB resources are loaded automatically. Use --asset-dir for
-additional external glTF, USD, texture, or material resource roots.
+Packed FBX and GLB resources are loaded automatically. A missing optional
+<model>.fbm folder is normal and silent. Use --asset-dir for additional
+external glTF, USD, texture, or material resource roots.
 USAGE
 }
 

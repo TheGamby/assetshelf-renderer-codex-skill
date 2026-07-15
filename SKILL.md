@@ -148,7 +148,7 @@ done
 - If the output is not PNG, change the output path to end in `.png`.
 - If the model path has spaces, quote it.
 - If textures are missing, add one or more `--asset-dir` paths for texture/material folders.
-- Packed FBX textures do not require `--asset-dir` or an external `.fbm` folder. A warning on standard error identifies referenced textures that could not be resolved or decoded.
+- Packed FBX textures do not require `--asset-dir` or an external `.fbm` folder. A missing optional `<model>.fbm` folder is normal and stays completely silent; only resources that are actually referenced but cannot be resolved, read, or decoded produce a warning on standard error.
 - FBX supports BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular maps plus UV selection, wrapping, UV transforms, tangents, and vertex colors.
 - `.gltf` resolves relative BIN and image URIs. Add repeated `--asset-dir` roots when resources are outside the model directory. Remote, absolute, and escaping resource paths are rejected.
 - Required Draco or KTX2/BasisU glTF content fails clearly because those codecs are not bundled in 1.1.

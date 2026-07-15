@@ -10,7 +10,10 @@ Usage:
 
 ```sh
 assetshelf-render <model> --output <render.png> [options]
+assetshelf-render --version
 ```
+
+Release 1.1 (Build 7) reports `assetshelf-render 1.1 (7)` for `--version`.
 
 Supported formats: `FBX, OBJ, DAE, SCN, USD, USDA, USDC, USDZ, glTF, GLB, STL, PLY`.
 
@@ -24,6 +27,16 @@ USD, USDA, and USDC imports preserve relative layer, payload, reference, texture
 
 Recoverable issues are written to standard error as `assetshelf-render: warning [CODE]: ...`; successful renders with warnings still exit `0`.
 
+Single-view renders can reproduce a camera exported from AssetShelf 3D:
+
+```sh
+assetshelf-render model.fbx --output render.png --camera-preset Product-Hero.camera.json
+```
+
+Camera presets use the `assetshelf-camera-preset` schema version 1. They cannot be combined with `--camera`, `--camera-position`, `--camera-target`, `--fov`, or a contact-sheet layout. Numeric camera vectors and field-of-view values must be finite; field of view must be greater than 0 and less than 180 degrees.
+
+`--show-pivot` renders the axis overlay at the imported model wrapper's actual transform origin. This is intentionally distinct from the center of the geometry bounds when a model's geometry is offset from its origin.
+
 Contact sheets are supported with:
 
 ```text
@@ -33,17 +46,15 @@ Contact sheets are supported with:
 
 `contact-4` renders front, back, left, and right views. `contact-6` also includes top and bottom views. The output is still one PNG.
 
-Release package created during AssetShelf 3D 1.1 (6):
+Contact-sheet output is limited to 16,777,216 pixels total and 8192 pixels per dimension. Invalid, non-finite, overflowing, or out-of-range numeric values fail before rendering.
+
+Release package for AssetShelf Renderer CLI 1.1 (Build 7):
 
 ```text
-/Users/jurgenreichardt-kron/Downloads/AssetShelf3DRenderCLI-1.1-6.pkg
+AssetShelf3DRenderCLI-1.1-7.pkg
 ```
 
-User guide PDF:
-
-```text
-/Users/jurgenreichardt-kron/Downloads/assetshelf-render-Benutzeranleitung-2026-07-09.pdf
-```
+Download the current signed and notarized installer from `https://thegamby.de/assetshelf-renderer/`.
 
 The package installs the CLI, GLTFKit2 framework, and third-party notices at:
 
@@ -53,8 +64,4 @@ The package installs the CLI, GLTFKit2 framework, and third-party notices at:
 /usr/local/share/doc/assetshelf-render/THIRD-PARTY-NOTICES.txt
 ```
 
-Known good packed-PBR FBX test model:
-
-```text
-/Users/jurgenreichardt-kron/Downloads/SmokeImagePawn.fbx
-```
+For a smoke test, use an owned local FBX or GLB fixture and write output to a temporary or project-specific path. Do not assume machine-specific model locations.

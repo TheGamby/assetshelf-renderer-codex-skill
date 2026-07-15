@@ -24,9 +24,9 @@ The product page always provides the current signed and notarized macOS
 installer, feature overview, and rendered examples:
 
 - [AssetShelf Renderer CLI product page](https://thegamby.de/assetshelf-renderer/)
-- [Download the current macOS installer](https://thegamby.de/assetshelf-renderer/downloads/AssetShelf3DRenderCLI-1.1-6.pkg)
+- [Download the current macOS installer](https://thegamby.de/assetshelf-renderer/downloads/AssetShelf3DRenderCLI-1.1-7.pkg)
 
-Current renderer release: **1.1 (Build 6)**.
+Current renderer release: **1.1 (Build 7)**.
 
 SceneKit rendering cannot run in a restricted sandbox without GPU access. Run
 actual render commands outside the sandbox from the first attempt. In Codex,
@@ -53,6 +53,13 @@ Restart Codex after installing or updating the skill.
 PNG is the supported output format.
 
 ## Usage
+
+Confirm the installed release:
+
+```sh
+assetshelf-render --version
+# assetshelf-render 1.1 (7)
+```
 
 Ask Codex to render a supported model, or run the included wrapper directly:
 
@@ -82,6 +89,19 @@ Create a four-view contact sheet:
   --width 1600 \
   --height 1200
 ```
+
+Contact sheets are limited to 16,777,216 output pixels and 8192 pixels per dimension. Camera vectors and field-of-view values must be finite.
+
+Apply an AssetShelf camera preset to a single-view render:
+
+```sh
+./scripts/render_model.sh \
+  "/path/to/model.fbx" \
+  "/path/to/render.png" \
+  --camera-preset "/path/to/Product-Hero.camera.json"
+```
+
+Use `--show-pivot` to draw axes at the imported model wrapper's actual transform origin. The renderer intentionally does not replace that origin with the center of the model's geometry bounds.
 
 See [SKILL.md](SKILL.md) for the complete workflow and CLI contract. Additional
 usage notes are available in

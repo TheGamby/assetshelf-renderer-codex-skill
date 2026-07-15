@@ -1,4 +1,4 @@
 interface:
   display_name: "AssetShelf Render"
-  short_description: "Render FBX, glTF, GLB, USD, and other 3D models to PNG previews or contact sheets"
+  short_description: "Render 3D models to PNG previews or contact sheets"
   default_prompt: "Use $assetshelf-render to render a 3D model with PBR materials and resource diagnostics to a PNG or contact sheet, then verify the output."

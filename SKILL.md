@@ -21,13 +21,14 @@ Commands that only inspect the CLI, such as `assetshelf-render --help`, may run 
 
 ```sh
 command -v assetshelf-render
+assetshelf-render --version
 assetshelf-render --help
 ```
 
 2. Locate a model file if the user did not provide one:
 
 ```sh
-find /Users/jurgenreichardt-kron/Downloads /Users/jurgenreichardt-kron/Documents -type f \( -iname '*.fbx' -o -iname '*.obj' -o -iname '*.gltf' -o -iname '*.glb' -o -iname '*.usdz' -o -iname '*.usd' -o -iname '*.stl' -o -iname '*.ply' \) -print
+find "${HOME}/Downloads" "${HOME}/Documents" -type f \( -iname '*.fbx' -o -iname '*.obj' -o -iname '*.gltf' -o -iname '*.glb' -o -iname '*.usdz' -o -iname '*.usd' -o -iname '*.stl' -o -iname '*.ply' \) -print
 ```
 
 3. Request execution outside the sandbox with host Metal/GPU access. Do not use `sudo`.
@@ -65,6 +66,7 @@ Output must be `.png`.
 Common options:
 
 ```text
+--version                    Print the renderer version and exit.
 --width <pixels>             Positive integer. Default: 1024.
 --height <pixels>            Positive integer. Default: 1024.
 --layout <mode>              single, contact-4, or contact-6. Default: single.
@@ -75,12 +77,15 @@ Common options:
 --camera-position x,y,z      Manual camera position.
 --camera-target x,y,z        Manual camera target.
 --fov <degrees>              Field of view, > 0 and < 180.
+--camera-preset <path>       AssetShelf camera-preset JSON, schema v1.
 --asset-dir <path>           Extra texture/material directory. Repeatable.
---show-pivot                 Render pivot axis overlay.
+--show-pivot                 Render axes at the actual model transform origin.
 --show-rigging               Render rigging overlay.
 ```
 
-Manual `--camera-position` and `--camera-target` are only valid with `--layout single`. `--fov` also applies to contact sheets.
+Manual `--camera-position`, `--camera-target`, and `--camera-preset` are only valid with `--layout single`. A camera preset cannot be combined with `--camera`, manual camera values, or `--fov`; `--fov` by itself also applies to contact sheets. Camera vectors and field-of-view values must be finite. Contact sheets are limited to 16,777,216 output pixels and 8192 pixels per dimension.
+
+`--show-pivot` marks the imported model wrapper's transform origin. It does not substitute the center of the model's geometry bounds.
 
 ## Good Defaults
 
@@ -125,12 +130,12 @@ For a six-view strip:
 For folders of FBX files, generate stable output names and quote every path:
 
 ```sh
-mkdir -p "/Users/jurgenreichardt-kron/Downloads/renders"
-for file in "/Users/jurgenreichardt-kron/Downloads/GH_V07_MODEL_"*/*.fbx; do
+mkdir -p "${HOME}/Downloads/renders"
+for file in "${HOME}/Downloads/models/"*.fbx; do
   name="$(basename "${file%.*}")"
   ~/.codex/skills/assetshelf-render/scripts/render_model.sh \
     "$file" \
-    "/Users/jurgenreichardt-kron/Downloads/renders/${name}.png" \
+    "${HOME}/Downloads/renders/${name}.png" \
     --width 1024 \
     --height 1024 \
     --background transparent
@@ -152,18 +157,6 @@ done
 - If rendering reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, retry the exact command once outside the sandbox with host GPU access. For Codex shell tools, request `sandbox_permissions: require_escalated`.
 - Do not use `sudo` for Metal access and do not diagnose this sandbox error as a broken model, camera, material, or texture. If the same error remains outside the sandbox, report a local Metal/SceneKit availability failure.
 - If contact-sheet views are needed, use `--layout contact-4` for front/back/left/right or `--layout contact-6` to add top/bottom.
+- Keep contact-sheet output at or below 16,777,216 pixels total and 8192 pixels on either dimension.
+- If an automated render needs to match an app camera exactly, export a schema-v1 camera preset and pass it with `--camera-preset` on a single-view render.
 - If the user asks for details, read `references/user-guide-summary.md`.
-
-## Repo Context
-
-The source project is typically:
-
-```text
-/Users/jurgenreichardt-kron/Documents/FbxViewer
-```
-
-The CLI packaging script in that repo is:
-
-```text
-scripts/package_render_cli.sh
-```

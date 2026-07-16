@@ -13,7 +13,7 @@ assetshelf-render <model> --output <render.png> [options]
 assetshelf-render --version
 ```
 
-Release 1.1 (Build 8) reports `assetshelf-render 1.1 (8)` for `--version`.
+Release 1.1 (Build 9) reports `assetshelf-render 1.1 (9)` for `--version`.
 
 Supported formats: `FBX, OBJ, DAE, SCN, USD, USDA, USDC, USDZ, glTF, GLB, STL, PLY`.
 
@@ -21,7 +21,7 @@ Output must be PNG. The renderer creates missing output directories automaticall
 
 FBX BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular textures can be loaded from external files or packed image data. Packed textures do not require a neighboring `.fbm` directory. If the optional `<model>.fbm` directory does not exist, the renderer remains completely silent; only genuine problems with referenced resources are diagnosed. The fallback also preserves vertex colors, tangents, multiple UV sets, texture UV selection, wrap modes, and UV transforms.
 
-glTF and GLB use GLTFKit2 0.5.15 for core PBR materials, embedded data, external buffers/images, sparse accessors, samplers, alpha modes, double-sided materials, and multiple UV channels. Required Draco and KTX2/BasisU resources are rejected clearly in 1.1.
+glTF and GLB use the pinned GLTFKit2 0.5.15 source build for core PBR materials, embedded data, external buffers/images, sparse accessors, samplers, alpha modes, double-sided materials, and multiple UV channels. KTX2/BasisU, Draco, and Zstandard codecs are excluded; required Draco and KTX2/BasisU resources are rejected clearly in 1.1, while optional declarations may use ordinary fallback content.
 
 USD, USDA, and USDC imports preserve relative layer, payload, reference, texture, and material trees. Explicit `--asset-dir` values provide additional resource roots. Symlinks are not followed.
 
@@ -48,20 +48,21 @@ Contact sheets are supported with:
 
 Contact-sheet output is limited to 16,777,216 pixels total and 8192 pixels per dimension. Invalid, non-finite, overflowing, or out-of-range numeric values fail before rendering.
 
-Release package for AssetShelf Renderer CLI 1.1 (Build 8):
+Release package for AssetShelf Renderer CLI 1.1 (Build 9):
 
 ```text
-AssetShelf3DRenderCLI-1.1-8.pkg
+AssetShelf3DRenderCLI-1.1-9.pkg
 ```
 
 Download the current signed and notarized installer from `https://thegamby.de/assetshelf-renderer/`.
 
-The package installs the CLI, GLTFKit2 framework, and third-party notices at:
+The package installs the CLI, GLTFKit2 framework, canonical third-party notices, and SPDX 2.3 SBOM at:
 
 ```text
 /usr/local/bin/assetshelf-render
 /usr/local/lib/assetshelf-render/GLTFKit2.framework
 /usr/local/share/doc/assetshelf-render/THIRD-PARTY-NOTICES.txt
+/usr/local/share/doc/assetshelf-render/THIRD-PARTY-SBOM.spdx.json
 ```
 
 For a smoke test, use an owned local FBX or GLB fixture and write output to a temporary or project-specific path. Do not assume machine-specific model locations.

@@ -24,9 +24,9 @@ The product page always provides the current signed and notarized macOS
 installer, feature overview, and rendered examples:
 
 - [AssetShelf Renderer CLI product page](https://thegamby.de/assetshelf-renderer/)
-- [Download the current macOS installer](https://thegamby.de/assetshelf-renderer/downloads/AssetShelf3DRenderCLI-1.1-8.pkg)
+- [Download the current macOS installer](https://thegamby.de/assetshelf-renderer/downloads/AssetShelf3DRenderCLI-1.1-9.pkg)
 
-Current renderer release: **1.1 (Build 8)**.
+Current renderer release: **1.1 (Build 9)**.
 
 SceneKit rendering cannot run in a restricted sandbox without GPU access. Run
 actual render commands outside the sandbox from the first attempt. In Codex,
@@ -58,7 +58,7 @@ Confirm the installed release:
 
 ```sh
 assetshelf-render --version
-# assetshelf-render 1.1 (8)
+# assetshelf-render 1.1 (9)
 ```
 
 Ask Codex to render a supported model, or run the included wrapper directly:
@@ -104,8 +104,12 @@ Apply an AssetShelf camera preset to a single-view render:
 Use `--show-pivot` to draw axes at the imported model wrapper's actual transform origin. The renderer intentionally does not replace that origin with the center of the model's geometry bounds.
 
 An optional neighboring `<model>.fbm` folder is not required. If it is absent,
-Build 8 stays completely silent; warnings are reserved for genuine problems
+Build 9 stays completely silent; warnings are reserved for genuine problems
 with resources that the model actually references.
+
+Build 9 uses a pinned GLTFKit2 0.5.15 source build and excludes KTX2/BasisU,
+Draco, and Zstandard codecs. The installer also includes the canonical
+third-party notices and SPDX 2.3 SBOM.
 
 See [SKILL.md](SKILL.md) for the complete workflow and CLI contract. Additional
 usage notes are available in

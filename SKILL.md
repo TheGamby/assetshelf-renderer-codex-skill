@@ -7,7 +7,7 @@ description: Render 3D model files to PNG images with the local AssetShelf 3D co
 
 ## Overview
 
-Use the installed `/usr/local/bin/assetshelf-render` CLI to render supported 3D model files to PNG outputs, including single-view renders and contact sheets with multiple model views in one image. FBX PBR images may be external or packed inside the FBX. glTF and GLB use GLTFKit2 for core PBR materials and external or embedded resources. Prefer the bundled wrapper script for repeatable calls because it validates the CLI, input, output extension, and PNG signature.
+Use the installed `/usr/local/bin/assetshelf-render` CLI to render supported 3D model files to PNG outputs, including single-view renders and contact sheets with multiple model views in one image. The current public release is 1.1 (Build 9). FBX PBR images may be external or packed inside the FBX. glTF and GLB use a source-built GLTFKit2 0.5.15 for core PBR materials and external or embedded resources; KTX2/BasisU, Draco, and Zstandard codecs are not bundled. Prefer the bundled wrapper script for repeatable calls because it validates the CLI, input, output extension, and PNG signature.
 
 ## Execution Requirements
 
@@ -24,6 +24,8 @@ command -v assetshelf-render
 assetshelf-render --version
 assetshelf-render --help
 ```
+
+Build 9 reports `assetshelf-render 1.1 (9)`.
 
 2. Locate a model file if the user did not provide one:
 

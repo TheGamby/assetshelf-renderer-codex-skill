@@ -1,23 +1,56 @@
 ---
 name: assetshelf-render
-description: Render 3D model files to PNG images with the local AssetShelf 3D command-line renderer. Use when Codex needs to call assetshelf-render, create thumbnails/previews, run render smoke tests, validate installed CLI behavior, render FBX/glTF/GLB/USD/OBJ/STL/PLY assets, batch-render model folders, or diagnose assetshelf-render command failures.
+description: Render supported 3D models to PNG with the local AssetShelf renderer, inspect rigid FBX/GLB part hierarchies, apply only explicitly requested local part rotations, and create indexed paginated pose contact sheets.
 ---
 
 # assetshelf-render
 
 ## Overview
 
-Use the installed `/usr/local/bin/assetshelf-render` CLI to render supported 3D model files to PNG outputs, including single-view renders and contact sheets with multiple model views in one image. The current public release is 1.1 (Build 9). FBX PBR images may be external or packed inside the FBX. glTF and GLB use a source-built GLTFKit2 0.5.15 for core PBR materials and external or embedded resources; KTX2/BasisU, Draco, and Zstandard codecs are not bundled. Prefer the bundled wrapper script for repeatable calls because it validates the CLI, input, output extension, and PNG signature.
+Use the installed `/usr/local/bin/assetshelf-render` CLI to render supported 3D
+models to PNG. Release 1.2 (Build 10) adds read-only FBX/GLB part inventory,
+explicit local part rotations, ordered pose files, and paginated pose contact
+sheets.
+
+The renderer never derives a joint, axis, angle, pose, sweep, or axis
+combination. Without `--rotate-part` or `--pose-file`, rendering stays on the
+unchanged bind/rest-pose path.
+
+Prefer `scripts/render_model.sh`: it validates the renderer, input and output.
+
+## Non-Negotiable Pose Workflow
+
+When the user requests a subobject rotation:
+
+1. Run `--list-parts` first.
+2. Read `rotatable` and `rotation_block_reason` from the inventory.
+3. Prefer the returned canonical `path:` selector.
+4. Never guess an ambiguous name or substitute a similar-looking node. Ask the
+   user which reported path they mean when intent is not unambiguous.
+5. Apply only axes and angles the user explicitly requested.
+6. Never invent angle ranges, regular sweeps, intermediate poses, or Cartesian
+   combinations. A pose file contains only the explicitly requested poses in
+   the requested order.
+
+Version 1 part rotation supports hierarchy-preserving rigid FBX and GLB nodes.
+It does not control animation, skinning, morphing, deformation, translation,
+scale, or world-space rotation.
 
 ## Execution Requirements
 
-Actual rendering uses SceneKit and Metal and cannot run in a restricted sandbox without host GPU access. Run render commands outside the sandbox from the first attempt. When using Codex shell tools, request `sandbox_permissions: require_escalated` with a concise Metal/GPU justification. This permission is not administrator access: do not use `sudo`.
+`--version`, `--help`, and `--list-parts` do not initialize Metal and may run in
+a restricted sandbox. Actual rendering uses SceneKit and Metal. Run render
+commands outside the sandbox from the first attempt with host GPU access. For
+Codex shell tools, request `sandbox_permissions: require_escalated`; do not use
+`sudo`.
 
-Commands that only inspect the CLI, such as `assetshelf-render --help`, may run inside the sandbox. If a render reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, retry the exact command once outside the sandbox. Do not change the model, textures, camera, or render options in response to this error. If the same error remains with host GPU access, report it as a local Metal/SceneKit availability failure.
+If a render reports `Metal device unavailable` or
+`SceneKit offscreen rendering requires GPU access`, retry the exact command once
+outside the sandbox. Do not alter the model or options in response.
 
 ## Quick Workflow
 
-1. Confirm the CLI exists:
+Confirm the release:
 
 ```sh
 command -v assetshelf-render
@@ -25,17 +58,9 @@ assetshelf-render --version
 assetshelf-render --help
 ```
 
-Build 9 reports `assetshelf-render 1.1 (9)`.
+Build 10 reports `assetshelf-render 1.2 (10)`.
 
-2. Locate a model file if the user did not provide one:
-
-```sh
-find "${HOME}/Downloads" "${HOME}/Documents" -type f \( -iname '*.fbx' -o -iname '*.obj' -o -iname '*.gltf' -o -iname '*.glb' -o -iname '*.usdz' -o -iname '*.usd' -o -iname '*.stl' -o -iname '*.ply' \) -print
-```
-
-3. Request execution outside the sandbox with host Metal/GPU access. Do not use `sudo`.
-
-4. Render via the wrapper:
+Render an unchanged model:
 
 ```sh
 ~/.codex/skills/assetshelf-render/scripts/render_model.sh \
@@ -47,118 +72,174 @@ find "${HOME}/Downloads" "${HOME}/Documents" -type f \( -iname '*.fbx' -o -iname
   --background transparent
 ```
 
-5. Report the output path and any validation result. If the user asked to inspect the image, use `view_image` on the PNG.
+Inspect a rigid FBX or GLB hierarchy without rendering:
+
+```sh
+~/.codex/skills/assetshelf-render/scripts/render_model.sh \
+  "/path/to/model.fbx" \
+  --list-parts > "/path/to/model.parts.json"
+```
+
+After choosing an exact selector from that JSON, render one explicitly requested
+pose:
+
+```sh
+~/.codex/skills/assetshelf-render/scripts/render_model.sh \
+  "/path/to/model.fbx" \
+  "/path/to/turned.png" \
+  --rotate-part "path:fbx:70/fbx:73" "y=90"
+```
+
+Repeated `--rotate-part` entries form one pose:
+
+```sh
+... --rotate-part "path:fbx:70/fbx:73" "x=10,y=90" \
+    --rotate-part "path:fbx:70/fbx:81" "z=-15"
+```
+
+## Explicit Pose Files
+
+Use a schema-v1 pose file when the user explicitly requests multiple poses:
+
+```json
+{
+  "schema": "de.thegamby.assetshelf-render.poses",
+  "version": 1,
+  "model_sha256": "optional exact lowercase SHA-256",
+  "poses": [
+    {
+      "id": "bind",
+      "label": "Bind pose",
+      "rotations": []
+    },
+    {
+      "id": "turntable-90",
+      "label": "Turntable 90 degrees",
+      "rotations": [
+        {
+          "selector": "path:fbx:70/fbx:73",
+          "local_degrees": { "y": 90 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`model_sha256` is optional but, when present, must match exactly. Pose IDs are
+unique and array order is render order. An empty rotation list explicitly means
+the bind/rest pose. `--pose-file` and `--rotate-part` are mutually exclusive.
+
+For a small result that fits one PNG:
+
+```sh
+~/.codex/skills/assetshelf-render/scripts/render_model.sh \
+  "/path/to/model.fbx" \
+  "/path/to/poses.png" \
+  --pose-file "/path/to/poses.json" \
+  --layout contact-4 \
+  --width 2048 \
+  --height 2048
+```
+
+For larger explicitly requested jobs, use a destination that does not yet
+exist:
+
+```sh
+~/.codex/skills/assetshelf-render/scripts/render_model.sh \
+  "/path/to/model.fbx" \
+  --output-directory "/path/to/new-pose-pages" \
+  --pose-file "/path/to/poses.json" \
+  --layout contact-6 \
+  --contact-arrangement grid \
+  --tile-width 512 \
+  --tile-height 512
+```
+
+The directory contains `page-0001.png`, additional numbered pages as needed,
+and `contact-sheet.json`. That index maps each explicit pose and rotation to its
+page, view, and pixel frame. A pose block is never split across pages.
 
 ## CLI Contract
 
-Syntax:
-
 ```sh
-assetshelf-render <model> --output <render.png> [options]
+assetshelf-render <model> (--output <render.png> | --output-directory <path> | --list-parts) [options]
 ```
 
-Supported input extensions:
+Supported inputs: `fbx`, `obj`, `dae`, `scn`, `usd`, `usda`, `usdc`, `usdz`,
+`gltf`, `glb`, `stl`, and `ply`. Part inventory and rotation are limited to
+rigid FBX and GLB in schema version 1.
+
+Important options:
 
 ```text
-fbx, obj, dae, scn, usd, usda, usdc, usdz, gltf, glb, stl, ply
-```
-
-Output must be `.png`.
-
-Common options:
-
-```text
---version                    Print the renderer version and exit.
---width <pixels>             Positive integer. Default: 1024.
---height <pixels>            Positive integer. Default: 1024.
---layout <mode>              single, contact-4, or contact-6. Default: single.
---contact-arrangement <mode> grid or strip. Default: grid.
---surface <mode>             textured, untextured, transparent, or mesh.
---background <value>         transparent or #RRGGBB.
+--list-parts                 JSON hierarchy inventory on stdout; no rendering.
+--rotate-part S A            Explicit selector S and local axis spec A; repeatable.
+--pose-file PATH             Ordered explicit pose JSON, schema version 1.
+--output PATH                One PNG.
+--output-directory PATH      New atomic paginated output directory.
+--tile-width PIXELS          Pose-series tile width. Default: 512.
+--tile-height PIXELS         Pose-series tile height. Default: 512.
+--width PIXELS               Single-PNG width. Default: 1024.
+--height PIXELS              Single-PNG height. Default: 1024.
+--layout MODE                single, contact-4, or contact-6.
+--contact-arrangement MODE   grid or strip.
+--surface MODE               textured, untextured, transparent, or mesh.
+--background VALUE           transparent or #RRGGBB.
 --camera auto                Automatic framing.
 --camera-position x,y,z      Manual camera position.
 --camera-target x,y,z        Manual camera target.
---fov <degrees>              Field of view, > 0 and < 180.
---camera-preset <path>       AssetShelf camera-preset JSON, schema v1.
---asset-dir <path>           Extra texture/material directory. Repeatable.
---show-pivot                 Render axes at the actual model transform origin.
---show-rigging               Render rigging overlay.
+--fov DEGREES                Finite field of view greater than 0 and less than 180.
+--camera-preset PATH         AssetShelf camera-preset JSON, schema version 1.
+--asset-dir PATH             Additional texture/material root; repeatable.
+--show-pivot                 Show the model wrapper origin, not a part pivot.
+--show-rigging               Render the rigging overlay.
 ```
 
-Manual `--camera-position`, `--camera-target`, and `--camera-preset` are only valid with `--layout single`. A camera preset cannot be combined with `--camera`, manual camera values, or `--fov`; `--fov` by itself also applies to contact sheets. Camera vectors and field-of-view values must be finite. Contact sheets are limited to 16,777,216 output pixels and 8192 pixels per dimension.
+### Selectors and local rotations
 
-`--show-pivot` marks the imported model wrapper's transform origin. It does not substitute the center of the model's geometry bounds.
+- Prefer `path:fbx:70/fbx:73` or `path:gltf:0/gltf:4` from `--list-parts`.
+- `id:fbx:73`, `id:gltf:4`, `name:OriginalName`, and a bare original name are
+  accepted only when they resolve uniquely.
+- Ambiguous names fail and report candidate canonical paths. Do not choose one
+  automatically.
+- Axis specs contain finite `x=`, `y=`, and/or `z=` degrees, for example
+  `x=10,y=90`. Omitted axes are zero.
+- Deltas are applied in local X, then Y, then Z order around the authored node
+  origin and relative to its imported transform.
+- Every pose starts from the imported transform; poses never accumulate.
+- Angles normalize modulo 360. Full turns preserve the authored matrix.
+- The same resolved node may occur only once per pose. Explicit parent and child
+  rotations may coexist.
+- A non-finite, non-affine, sheared, degenerate, animated, deformed, or otherwise
+  unsafe hierarchy blocks the complete pose request before output.
 
-## Good Defaults
+### Limits
 
-For general previews:
+- Pose JSON: 16 MiB maximum.
+- 4,096 explicit poses maximum.
+- 256 explicit node rotations per pose.
+- 4,096 total pose/view cells and 256 pages maximum.
+- 8,192 pixels per page dimension and 16,777,216 pixels per page.
+- With `--output`, every cell must be at least 128×128 and all cells must fit the
+  one PNG. Use `--output-directory` otherwise.
+- All poses share union bounds for automatic framing. Manual or preset cameras
+  stay exact.
 
-```sh
---width 1024 --height 1024 --surface textured --background transparent
-```
+## Rendering Notes
 
-For quick smoke tests:
+- `contact-4` renders front, back, left, right; `contact-6` adds top and bottom.
+- `--show-pivot` always marks only the imported model wrapper origin.
+- FBX images may be external or packed. A missing optional `<model>.fbm` folder
+  is normal, is not created, and stays silent.
+- Materialless FBXs receive an opaque neutral PBR fallback (or opaque white for
+  vertex colors) and may emit one `fbx.material-fallback` warning. Genuine
+  material opacity is preserved.
+- glTF/GLB use source-built GLTFKit2 0.5.15. KTX2/BasisU, Draco and Zstandard
+  codecs are not bundled.
+- Recoverable loader notices use
+  `assetshelf-render: warning [CODE]: ...` on standard error and may still exit
+  with status 0.
+- The renderer never modifies the input model, sidecars, or resource tree.
 
-```sh
---width 512 --height 512 --surface textured --background transparent
-```
-
-For QA/geometry checks:
-
-```sh
---surface mesh --show-pivot
-```
-
-For product-like screenshots:
-
-```sh
---width 1600 --height 1200 --background "#FFFFFF"
-```
-
-For a four-view contact sheet:
-
-```sh
---layout contact-4 --contact-arrangement grid --width 1600 --height 1200
-```
-
-For a six-view strip:
-
-```sh
---layout contact-6 --contact-arrangement strip --width 2200 --height 500
-```
-
-## Batch Rendering
-
-For folders of FBX files, generate stable output names and quote every path:
-
-```sh
-mkdir -p "${HOME}/Downloads/renders"
-for file in "${HOME}/Downloads/models/"*.fbx; do
-  name="$(basename "${file%.*}")"
-  ~/.codex/skills/assetshelf-render/scripts/render_model.sh \
-    "$file" \
-    "${HOME}/Downloads/renders/${name}.png" \
-    --width 1024 \
-    --height 1024 \
-    --background transparent
-done
-```
-
-## Troubleshooting
-
-- If `assetshelf-render` is missing, tell the user the CLI package needs to be installed. Expected path: `/usr/local/bin/assetshelf-render`.
-- If the output is not PNG, change the output path to end in `.png`.
-- If the model path has spaces, quote it.
-- If textures are missing, add one or more `--asset-dir` paths for texture/material folders.
-- Packed FBX textures do not require `--asset-dir` or an external `.fbm` folder. A missing optional `<model>.fbm` folder is normal and stays completely silent; only resources that are actually referenced but cannot be resolved, read, or decoded produce a warning on standard error.
-- FBX supports BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular maps plus UV selection, wrapping, UV transforms, tangents, and vertex colors.
-- `.gltf` resolves relative BIN and image URIs. Add repeated `--asset-dir` roots when resources are outside the model directory. Remote, absolute, and escaping resource paths are rejected.
-- Required Draco or KTX2/BasisU glTF content fails clearly because those codecs are not bundled in 1.1.
-- USD, USDA, and USDC imports preserve relative layers, payloads, references, materials, and textures. Symlinks are skipped and reported.
-- Recoverable loader notices are written as `assetshelf-render: warning [CODE]: ...` on standard error while the render exits `0`.
-- If rendering reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, retry the exact command once outside the sandbox with host GPU access. For Codex shell tools, request `sandbox_permissions: require_escalated`.
-- Do not use `sudo` for Metal access and do not diagnose this sandbox error as a broken model, camera, material, or texture. If the same error remains outside the sandbox, report a local Metal/SceneKit availability failure.
-- If contact-sheet views are needed, use `--layout contact-4` for front/back/left/right or `--layout contact-6` to add top/bottom.
-- Keep contact-sheet output at or below 16,777,216 pixels total and 8192 pixels on either dimension.
-- If an automated render needs to match an app camera exactly, export a schema-v1 camera preset and pass it with `--camera-preset` on a single-view render.
-- If the user asks for details, read `references/user-guide-summary.md`.
+See `references/user-guide-summary.md` for JSON field details and examples.

@@ -1,62 +1,250 @@
 # assetshelf-render Reference
 
-`assetshelf-render` is installed at `/usr/local/bin/assetshelf-render`.
+Release 1.2 (Build 10) reports:
 
-Actual rendering requires host Metal/GPU access and cannot run in a restricted sandbox. Run render commands outside the sandbox from the first attempt; in Codex shell tools, request `sandbox_permissions: require_escalated`. This is not administrator access and does not require `sudo`. Inspection commands such as `assetshelf-render --help` may run inside the sandbox.
+```text
+assetshelf-render 1.2 (10)
+```
 
-If rendering reports `Metal device unavailable` or `SceneKit offscreen rendering requires GPU access`, repeat the exact command once outside the sandbox. Do not change model, camera, material, texture, or render options for this error. If it remains with host GPU access, report a local Metal/SceneKit availability failure.
+The signed installer is `AssetShelf3DRenderCLI-1.2-10.pkg`. It installs the
+renderer at `/usr/local/bin/assetshelf-render`.
 
-Usage:
+## Commands and outputs
 
 ```sh
 assetshelf-render <model> --output <render.png> [options]
+assetshelf-render <model> --output-directory <new-directory> [options]
+assetshelf-render <model> --list-parts
 assetshelf-render --version
 ```
 
-Release 1.1 (Build 9) reports `assetshelf-render 1.1 (9)` for `--version`.
+Supported render inputs are FBX, OBJ, DAE, SCN, USD, USDA, USDC, USDZ, glTF,
+GLB, STL and PLY. Version-1 logical-node inventory and rotation require a
+hierarchy-preserving rigid FBX or GLB.
 
-Supported formats: `FBX, OBJ, DAE, SCN, USD, USDA, USDC, USDZ, glTF, GLB, STL, PLY`.
+Actual rendering needs SceneKit/Metal host GPU access. `--list-parts`, `--help`
+and `--version` do not render. Do not use `sudo` to solve a GPU sandbox error.
 
-Output must be PNG. The renderer creates missing output directories automatically.
+## Part inventory must come first
 
-FBX BaseColor, Normal, Roughness, Metallic, Emission, Opacity, Ambient Occlusion, and Specular textures can be loaded from external files or packed image data. Packed textures do not require a neighboring `.fbm` directory. If the optional `<model>.fbm` directory does not exist, the renderer remains completely silent; only genuine problems with referenced resources are diagnosed. The fallback also preserves vertex colors, tangents, multiple UV sets, texture UV selection, wrap modes, and UV transforms.
-
-glTF and GLB use the pinned GLTFKit2 0.5.15 source build for core PBR materials, embedded data, external buffers/images, sparse accessors, samplers, alpha modes, double-sided materials, and multiple UV channels. KTX2/BasisU, Draco, and Zstandard codecs are excluded; required Draco and KTX2/BasisU resources are rejected clearly in 1.1, while optional declarations may use ordinary fallback content.
-
-USD, USDA, and USDC imports preserve relative layer, payload, reference, texture, and material trees. Explicit `--asset-dir` values provide additional resource roots. Symlinks are not followed.
-
-Recoverable issues are written to standard error as `assetshelf-render: warning [CODE]: ...`; successful renders with warnings still exit `0`.
-
-Single-view renders can reproduce a camera exported from AssetShelf 3D:
+Before any subobject rotation, run:
 
 ```sh
-assetshelf-render model.fbx --output render.png --camera-preset Product-Hero.camera.json
+assetshelf-render model.fbx --list-parts > model.parts.json
 ```
 
-Camera presets use the `assetshelf-camera-preset` schema version 1. They cannot be combined with `--camera`, `--camera-position`, `--camera-target`, `--fov`, or a contact-sheet layout. Numeric camera vectors and field-of-view values must be finite; field of view must be greater than 0 and less than 180 degrees.
+This writes one JSON document to stdout with schema
+`de.thegamby.assetshelf-render.parts`, version 1. Diagnostics remain on stderr.
+Top-level fields are:
 
-`--show-pivot` renders the axis overlay at the imported model wrapper's actual transform origin. This is intentionally distinct from the center of the geometry bounds when a model's geometry is offset from its origin.
+- `model_sha256`: exact SHA-256 of the model file;
+- `format`: `fbx` or `glb`;
+- `parts`: flat logical-node inventory.
 
-Contact sheets are supported with:
+Each part includes:
+
+- `original_name`;
+- `source_id`, such as `fbx:73` or `gltf:4`;
+- preferred canonical `selector`, such as `path:fbx:70/fbx:73`;
+- optional canonical `parent`;
+- `has_geometry` and `has_children`;
+- `local_transform` with a column-major 4×4 matrix and, when safe,
+  translation, quaternion rotation and signed scale;
+- `rotatable` and, when false, `rotation_block_reason`.
+
+The authoritative matrix is serialized by columns. If it contains non-finite
+values, `column_major_matrix` is `null`; the renderer never invents zeros or an
+identity transform. Safe TRS convenience fields are omitted for unsafe
+transforms.
+
+Rigid-pose validation is all-or-nothing. Defined block reasons are:
 
 ```text
+model-has-animation-or-deformation
+authored-hierarchy-unavailable:<canonical-path>
+unsafe-local-transform:<canonical-path>
+```
+
+Synthetic render primitives, cameras and lights are not selectable parts.
+
+## Selectors
+
+Use the exact canonical `path:` selector returned by inventory for automation:
+
+```text
+path:fbx:70/fbx:73
+path:gltf:0/gltf:4
+```
+
+The renderer also accepts `id:fbx:73`, `id:gltf:4`, `name:OriginalName`, or a
+bare original name when it resolves globally and uniquely. An ambiguous name or
+ID fails and reports candidate canonical paths. A caller must not guess among
+them.
+
+## One explicit command-line pose
+
+```sh
+assetshelf-render model.fbx \
+  --output turned.png \
+  --rotate-part "path:fbx:70/fbx:73" "y=90"
+```
+
+Repeat `--rotate-part` to rotate more than one explicitly named node in that
+same pose:
+
+```sh
+--rotate-part "path:fbx:70/fbx:73" "x=10,y=90" \
+--rotate-part "path:fbx:70/fbx:81" "z=-15"
+```
+
+Local axis values must be finite. Missing axes are zero. The delta is applied
+in local X, then Y, then Z order around the authored node origin and relative to
+the imported transform. Angles normalize modulo 360; exact full turns preserve
+the authored matrix. Every pose begins at the imported state and never
+accumulates from a previous pose.
+
+The same resolved node may occur only once in a pose. A parent and child may
+both be present when both were explicitly requested. `--rotate-part` and
+`--pose-file` cannot be combined.
+
+## Ordered explicit pose input
+
+Schema version 1:
+
+```json
+{
+  "schema": "de.thegamby.assetshelf-render.poses",
+  "version": 1,
+  "model_sha256": "optional lowercase 64-character SHA-256",
+  "poses": [
+    {
+      "id": "bind",
+      "label": "Bind pose",
+      "rotations": []
+    },
+    {
+      "id": "turntable-90",
+      "label": "Turntable 90 degrees",
+      "rotations": [
+        {
+          "selector": "path:fbx:70/fbx:73",
+          "local_degrees": { "y": 90 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `model_sha256` is optional; when present it must match exactly.
+- `poses` is required, non-empty and rendered in array order.
+- Pose IDs are non-blank and globally unique. Labels are optional.
+- An empty rotations array explicitly requests the bind/rest pose.
+- Each `local_degrees` object contains one or more of finite `x`, `y`, `z`.
+
+There is no range or sweep syntax. The renderer never derives intermediate
+angles, axes, joints, combinations, or poses. Render only entries explicitly
+requested by the user or upstream automation project.
+
+## Single PNG and paginated series
+
+`--layout single` produces one view per pose. `contact-4` produces front, back,
+left and right. `contact-6` adds top and bottom. Only listed poses are rendered.
+
+Small plans may be written to one PNG:
+
+```sh
+assetshelf-render model.fbx \
+  --output poses.png \
+  --pose-file poses.json \
+  --layout contact-4 \
+  --width 2048 \
+  --height 2048
+```
+
+Every cell must be at least 128×128 pixels and the complete plan must fit one
+image. For larger plans, the output directory must not already exist:
+
+```sh
+assetshelf-render model.fbx \
+  --output-directory pose-pages \
+  --pose-file poses.json \
+  --layout contact-6 \
+  --contact-arrangement grid \
+  --tile-width 512 \
+  --tile-height 512
+```
+
+The renderer stages the complete directory and publishes it atomically. It
+contains `page-0001.png`, subsequent numbered pages, and `contact-sheet.json`.
+No partial directory is published on failure.
+
+The index uses schema `de.thegamby.assetshelf-render.contact-sheet`, version 1.
+It records the model filename and SHA-256, layout, arrangement, tile size, an
+ordered top-level pose table, and numbered pages with cells. Each cell contains
+`pose_index`, `pose_id`, `view_index`, `view`, and an integer pixel `frame`.
+Resolved rotations are stored once in the pose table with canonical selectors,
+requested degrees, and normalized degrees. A pose block is never split across
+pages.
+
+## Limits
+
+- Pose file: 16 MiB maximum.
+- 4,096 explicit poses maximum.
+- 256 node rotations per pose.
+- 4,096 total pose/view cells.
+- 256 output pages.
+- 8,192 pixels maximum per page dimension.
+- 16,777,216 pixels maximum per page.
+- Default pose-series tile: 512×512.
+
+All poses use shared union bounds for stable automatic framing. A manual camera
+or schema-v1 camera preset remains fixed instead.
+
+## Existing rendering options
+
+```text
+--width <pixels>
+--height <pixels>
 --layout single|contact-4|contact-6
 --contact-arrangement grid|strip
+--surface textured|untextured|transparent|mesh
+--background transparent|#RRGGBB
+--camera auto
+--camera-position x,y,z
+--camera-target x,y,z
+--fov <degrees>
+--camera-preset <schema-v1 JSON>
+--asset-dir <path>                 repeatable
+--show-pivot
+--show-rigging
 ```
 
-`contact-4` renders front, back, left, and right views. `contact-6` also includes top and bottom views. The output is still one PNG.
+`--show-pivot` marks the imported model wrapper transform origin, not the center
+of its bounds and not a selected part pivot.
 
-Contact-sheet output is limited to 16,777,216 pixels total and 8192 pixels per dimension. Invalid, non-finite, overflowing, or out-of-range numeric values fail before rendering.
+## Materials and resources
 
-Release package for AssetShelf Renderer CLI 1.1 (Build 9):
+- FBX supports packed or external BaseColor, Normal, Roughness, Metallic,
+  Emission, Opacity, Ambient Occlusion and Specular inputs plus vertex colors,
+  tangents, UV sets, wrapping and UV transforms.
+- A missing optional neighboring `<model>.fbm` directory is completely silent,
+  is not created and is not required. Missing resources that are actually
+  referenced may produce a warning.
+- A materialless FBX receives an opaque neutral PBR fallback; an FBX with vertex
+  colors receives opaque white so the colors remain visible. One
+  `fbx.material-fallback` warning may be emitted. Authored opacity is preserved.
+- glTF/GLB use pinned source-built GLTFKit2 0.5.15. KTX2/BasisU, Draco and
+  Zstandard codecs are excluded.
+- USD resource trees and repeated `--asset-dir` roots remain supported. Symlinks
+  are not followed.
+- Input models, sidecars and resources are never modified.
 
-```text
-AssetShelf3DRenderCLI-1.1-9.pkg
-```
+Recoverable diagnostics use
+`assetshelf-render: warning [CODE]: ...` on stderr while a valid render may
+still exit 0.
 
-Download the current signed and notarized installer from `https://thegamby.de/assetshelf-renderer/`.
-
-The package installs the CLI, GLTFKit2 framework, canonical third-party notices, and SPDX 2.3 SBOM at:
+## Package contents
 
 ```text
 /usr/local/bin/assetshelf-render
@@ -65,4 +253,5 @@ The package installs the CLI, GLTFKit2 framework, canonical third-party notices,
 /usr/local/share/doc/assetshelf-render/THIRD-PARTY-SBOM.spdx.json
 ```
 
-For a smoke test, use an owned local FBX or GLB fixture and write output to a temporary or project-specific path. Do not assume machine-specific model locations.
+Download the current signed and notarized installer from
+<https://thegamby.de/assetshelf-renderer/>.

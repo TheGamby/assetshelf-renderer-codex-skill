@@ -1,4 +1,4 @@
 interface:
   display_name: "AssetShelf Render"
-  short_description: "Render 3D models to PNG previews or contact sheets"
-  default_prompt: "Use $assetshelf-render to render a 3D model with PBR materials and resource diagnostics to a PNG or contact sheet, then verify the output."
+  short_description: "Render models and explicit rigid-part poses"
+  default_prompt: "Use $assetshelf-render to inspect rigid FBX/GLB parts before any requested subobject rotation, select canonical paths without guessing, render only the explicit poses requested, and verify PNG or indexed contact-sheet output."
